@@ -18,11 +18,19 @@
 #include <pyerrors.h>
 #include <structmember.h>
 
+/**
+ * @brief Python struct for sqe
+ *
+ */
 typedef struct {
   PyObject_HEAD struct io_uring_sqe *entry;
   PyObject *flags;
 } SQE;
 
+/**
+ * @brief Python struct for cqe
+ *
+ */
 typedef struct {
   PyObject_HEAD struct io_uring_cqe *entry;
 } CQE;

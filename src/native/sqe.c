@@ -29,20 +29,6 @@ int SQEInit(PyObject *self, PyObject *args, PyObject *kwds) {
   SQE *sqe = (SQE *)self;
   sqe->flags = PyDict_New();
 
-  PyObject *fixed_file = PyLong_FromLong(IOSQE_FIXED_FILE);
-  PyObject *io_drain = PyLong_FromLong(IOSQE_IO_DRAIN);
-  PyObject *io_link = PyLong_FromLong(IOSQE_IO_LINK);
-  PyObject *io_hardlink = PyLong_FromLong(IOSQE_IO_HARDLINK);
-  PyObject *async = PyLong_FromLong(IOSQE_ASYNC);
-  PyObject *buffer_select = PyLong_FromLong(IOSQE_BUFFER_SELECT);
-
-  PyDict_SetItemString(sqe->flags, "FIXED_FILE", fixed_file);
-  PyDict_SetItemString(sqe->flags, "IO_DRAIN", io_drain);
-  PyDict_SetItemString(sqe->flags, "IO_LINK", io_link);
-  PyDict_SetItemString(sqe->flags, "IO_HARDLINK", io_hardlink);
-  PyDict_SetItemString(sqe->flags, "ASYNC", async);
-  PyDict_SetItemString(sqe->flags, "BUFFER_SELECT", buffer_select);
-
   return 0;
 }
 
@@ -66,6 +52,21 @@ PyObject *SQESetFlags(PyObject *self, PyObject *args) {
   return Py_None;
 }
 
+PyObject *SQESetData(PyObject *self, PyObject *args) {
+  SQE *sqe = (SQE *)self;
+  PyObject *obj;
+  if (!PyArg_ParseTuple(args, "O", &obj)) return NULL;
+  Py_INCREF(obj);
+  sqe->entry->user_data = (__u64)obj;
+  return Py_None;
+}
+
+PyObject *SQEGetData(PyObject *self, PyObject *args) {
+  SQE *sqe = (SQE *)self;
+  Py_INCREF((PyObject *)sqe->entry->user_data);
+  return (PyObject *)sqe->entry->user_data;
+}
+
 static PyMemberDef sqe_members[] = {
     {"flags", T_OBJECT, sizeof(PyObject) + sizeof(struct io_uring_sqe), 1,
      "Flags of SQE"},
@@ -73,8 +74,10 @@ static PyMemberDef sqe_members[] = {
 
 static PyMethodDef sqe_methods[] = {
     {"set_fd", SQESetFD, METH_VARARGS, "Prepare for NOP"},
-    {"set_opcode", SQESetOC, METH_NOARGS, "Set opcode"},
-    {"set_flags", SQESetFlags, METH_NOARGS, "Set flags"},
+    {"set_opcode", SQESetOC, METH_VARARGS, "Set opcode"},
+    {"set_flags", SQESetFlags, METH_VARARGS, "Set flags"},
+    {"set_data", SQESetData, METH_VARARGS, "Set data"},
+    {"get_data", SQEGetData, METH_NOARGS, "Set data"},
     {NULL, NULL, 0, NULL}};
 
 PyTypeObject sqe_type = {
@@ -121,4 +124,18 @@ extern void register_sqe(PyObject *mod) {
   Py_INCREF(&sqe_type);
   if (PyModule_AddObject(mod, "SQE", (PyObject *)&sqe_type) < 0)
     Py_DECREF(&sqe_type);
+
+  PyObject *fixed_file = PyLong_FromLong(IOSQE_FIXED_FILE);
+  PyObject *io_drain = PyLong_FromLong(IOSQE_IO_DRAIN);
+  PyObject *io_link = PyLong_FromLong(IOSQE_IO_LINK);
+  PyObject *io_hardlink = PyLong_FromLong(IOSQE_IO_HARDLINK);
+  PyObject *async = PyLong_FromLong(IOSQE_ASYNC);
+  PyObject *buffer_select = PyLong_FromLong(IOSQE_BUFFER_SELECT);
+
+  PyModule_AddIntConstant(mod, "SQE_FIXED_FILE", IOSQE_FIXED_FILE);
+  PyModule_AddIntConstant(mod, "SQE_IO_DRAIN", IOSQE_IO_DRAIN);
+  PyModule_AddIntConstant(mod, "SQE_IO_LINK", IOSQE_IO_LINK);
+  PyModule_AddIntConstant(mod, "SQE_IO_HARDLINK", IOSQE_IO_HARDLINK);
+  PyModule_AddIntConstant(mod, "SQE_ASYNC", IOSQE_ASYNC);
+  PyModule_AddIntConstant(mod, "SQE_BUFFER_SELECT", IOSQE_BUFFER_SELECT);
 }

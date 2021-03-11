@@ -20,18 +20,41 @@
  * SOFTWARE.
  */
 
-#include "uring.h"
 #include <liburing.h>
 
+#include "uring.h"
 
 int CQEInit(PyObject *self, PyObject *args, PyObject *kwds) {
   CQE *cqe = (CQE *)self;
   return 0;
 }
 
+PyObject *CQEGetData(PyObject *self, PyObject *args) {
+  (void)args;
+  CQE *cqe = (CQE *)self;
+  return (PyObject *)io_uring_cqe_get_data(cqe->entry);
+}
+
+PyObject *CQEGetResult(PyObject *self, PyObject *args) {
+  (void)args;
+  CQE *cqe = (CQE *)self;
+  return PyLong_FromLong(cqe->entry->res);
+}
+
+PyObject *CQEGetFlags(PyObject *self, PyObject *args) {
+  (void)args;
+  CQE *cqe = (CQE *)self;
+  return PyLong_FromLong(cqe->entry->flags);
+}
+
 void CQEDestructor(void *self) { CQE *cqe = (CQE *)self; }
 
-static PyMethodDef cqe_methods[] = {{NULL, NULL, 0, NULL}};
+static PyMethodDef cqe_methods[] = {
+    {"get_data", CQEGetData, METH_NOARGS,
+     "Returns data object saved to corresponding SQE"},
+    {"get_result", CQEGetResult, METH_NOARGS, "Returns result of operation"},
+    {"get_flags", CQEGetFlags, METH_NOARGS, "Returns flags of operation"},
+    {NULL, NULL, 0, NULL}};
 
 PyTypeObject cqe_type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0) "_uring_io.CQE", /* tp_name */
@@ -60,7 +83,7 @@ PyTypeObject cqe_type = {
     0,                   /* tp_weaklistoffset */
     0,                   /* tp_iter */
     0,                   /* tp_iternext */
-    cqe_methods,          /* tp_methods */
+    cqe_methods,         /* tp_methods */
     0,                   /* tp_members */
     0,                   /* tp_getset */
     0,                   /* tp_base */

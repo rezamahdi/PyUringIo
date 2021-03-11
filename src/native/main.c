@@ -26,6 +26,9 @@
 #include "uring.h"
 
 static PyObject *supported(PyObject *self, PyObject *args) {
+  (void)self;
+  (void)args;
+
   struct utsname name;
   uname(&name);
   unsigned int major;
