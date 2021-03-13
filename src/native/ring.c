@@ -232,7 +232,6 @@ PyObject *RingCQESeen(PyObject *self, PyObject *args) {
   io_uring_cqe_seen(&ring->ring, cqe.entry);
 
   // TODO(reza): decrease reference of cqe data
-  //Py_DECREF((PyObject *)cqe.entry->user_data);
   Py_RETURN_NONE;
 }
 

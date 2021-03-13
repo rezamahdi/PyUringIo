@@ -59,7 +59,10 @@ int CQESetter(PyObject *self, PyObject *val, void *enc) {
   return -1;
 }
 
-void CQEDestructor(void *self) { CQE *cqe = (CQE *)self; }
+void CQEDestructor(void *self) {
+  CQE *cqe = (CQE *)self;
+  Py_DECREF(cqe->entry->user_data);
+}
 
 static PyGetSetDef cqe_getset[] = {
     {"data", CQEGetData, CQESetter, "User data of CQE", NULL},

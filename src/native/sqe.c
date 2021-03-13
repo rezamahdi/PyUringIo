@@ -165,7 +165,9 @@ PyObject *SQEGetOpFlags(PyObject *self, void *enc) {
 int SQESetData(PyObject *self, PyObject *args, void *enc) {
   (void)enc;
   SQE *sqe = (SQE *)self;
+  Py_DECREF(sqe->entry->user_data);
   sqe->entry->user_data = (__u64)args;
+  Py_INCREF(args);
   return 0;
 }
 PyObject *SQEGetData(PyObject *self, void *enc) {
