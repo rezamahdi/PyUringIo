@@ -31,13 +31,6 @@
 extern PyTypeObject sqe_type;
 extern PyTypeObject cqe_type;
 
-typedef struct {
-  PyObject_HEAD struct io_uring ring;
-  PyObject *entries;
-  PyObject *flags;
-  PyObject *fd;
-} Ring;
-
 static char *ring_init_kwds[] = {
     "entries",        "sq_entries", "cq_entries", "flags", "sq_thread_cpu",
     "sq_thread_idle", "features",   "wq_fd",      NULL,
@@ -70,9 +63,7 @@ int RingInit(PyObject *self, PyObject *args, PyObject *kwds) {
     PyErr_SetString(PyExc_RuntimeError, strerror(-err));
     return -1;
   }
-  ring->fd = PyLong_FromLong(ring->ring.ring_fd);
   ring->entries = PyLong_FromLong(entries);
-  ring->flags = PyLong_FromLong(ring->ring.flags);
   return 0;
 }
 
@@ -81,7 +72,17 @@ PyObject *RingGetSQE(PyObject *self, PyObject *args) {
   (void)args;
   Ring *ring = (Ring *)self;
   SQE *sqe = PyObject_New(SQE, &sqe_type);
-  sqe->entry = io_uring_get_sqe(&ring->ring);
+
+  struct io_uring_sqe *s = io_uring_get_sqe(&ring->ring);
+
+  if (s == NULL) {
+    PyErr_SetString(PyExc_RuntimeError, "Submission queue full");
+    return NULL;
+  }
+
+  sqe->entry = s;
+  sqe->entry->user_data = (__u64)Py_None;
+  Py_INCREF(Py_None);
   return PyObject_Init((PyObject *)sqe, &sqe_type);
 }
 
@@ -90,14 +91,9 @@ PyObject *RingSubmit(PyObject *self, PyObject *args) {
   (void)args;
   Ring *ring = (Ring *)self;
 
-  int err = io_uring_submit(&ring->ring);
+  int num = io_uring_submit(&ring->ring);
 
-  if (err != 0) {
-    PyErr_SetString(PyExc_RuntimeError, strerror(-err));
-    return NULL;
-  }
-
-  return Py_None;
+  return PyLong_FromLong(num);
 }
 
 /* Submit a ring and wait*/
@@ -114,7 +110,7 @@ PyObject *RingSubmitAndWait(PyObject *self, PyObject *args) {
     return NULL;
   }
 
-  return Py_None;
+  Py_RETURN_NONE;
 }
 
 /* Wait for a completation */
@@ -122,12 +118,17 @@ PyObject *RingWaitForCQE(PyObject *self, PyObject *args) {
   (void)args;
   Ring *ring = (Ring *)self;
   CQE *cqe = PyObject_New(CQE, &cqe_type);
+  cqe->entry=NULL;
   PyObject_Init((PyObject *)cqe, &cqe_type);
 
   int err = io_uring_wait_cqe(&ring->ring, &cqe->entry);
   if (err != 0) {
     PyErr_SetString(PyExc_RuntimeError, strerror(-err));
     return NULL;
+  }
+
+  if(cqe->entry == NULL) {
+    Py_RETURN_NONE;
   }
 
   return (PyObject *)cqe;
@@ -158,19 +159,25 @@ PyObject *RingWaitForCQENr(PyObject *self, PyObject *args) {
 /* Wait for a specific count of complementations with a timeout */
 PyObject *RingWaitForCQETO(PyObject *self, PyObject *args) {
   Ring *ring = (Ring *)self;
-  struct io_uring_cqe *cqe_list;
-  unsigned int count;
+  CQE *cqe = PyObject_New(CQE, &cqe_type);
+  PyObject_Init((PyObject *)cqe, &cqe_type);
   struct __kernel_timespec ts = {.tv_nsec = 0, .tv_sec = 0};
 
-  if (!PyArg_ParseTuple(args, "III", &count, &ts.tv_sec, &ts.tv_nsec))
-    return NULL;
+  cqe->entry = NULL;
 
-  if (!io_uring_wait_cqe_timeout(&ring->ring, &cqe_list, &ts)) {
+  if (!PyArg_ParseTuple(args, "II", &ts.tv_sec, &ts.tv_nsec)) return NULL;
+
+  if (!io_uring_wait_cqe_timeout(&ring->ring, &cqe->entry, &ts)) {
     PyErr_BadArgument();
     return NULL;
   }
 
-  return Py_None;
+  if (cqe->entry == NULL) {
+    Py_DECREF(cqe);
+    Py_RETURN_NONE;
+  }
+
+  return (PyObject *)cqe;
 }
 
 /* Peek a single complementation from CQ */
@@ -180,11 +187,18 @@ PyObject *RingPeekCQE(PyObject *self, PyObject *args) {
   CQE *cqe = PyObject_New(CQE, &cqe_type);
   PyObject_Init((PyObject *)cqe, &cqe_type);
 
+  cqe->entry = NULL;
+
   int err = io_uring_peek_cqe(&ring->ring, &cqe->entry);
 
   if (err != 0) {
-    PyErr_SetString(PyExc_RuntimeError, strerror(err));
+    PyErr_SetString(PyExc_RuntimeError, strerror(-err));
     return NULL;
+  }
+
+  if (cqe->entry == NULL) {
+    Py_DECREF(cqe);
+    Py_RETURN_NONE;
   }
 
   return (PyObject *)cqe;
@@ -218,8 +232,8 @@ PyObject *RingCQESeen(PyObject *self, PyObject *args) {
   io_uring_cqe_seen(&ring->ring, cqe.entry);
 
   // TODO(reza): decrease reference of cqe data
-  Py_DECREF((PyObject *)cqe.entry->user_data);
-  return Py_None;
+  //Py_DECREF((PyObject *)cqe.entry->user_data);
+  Py_RETURN_NONE;
 }
 
 /* destructor of ring */
@@ -231,9 +245,9 @@ void RingDestructor(void *self) {
 static PyMemberDef ring_members[] = {
     {"entries", T_OBJECT, sizeof(PyObject) + sizeof(struct io_uring), 1,
      "Number of entries in ring"},
-    {"flags", T_OBJECT, 2 * sizeof(PyObject) + sizeof(struct io_uring), 1,
-     "Flags of ring"},
-    {"fd", T_OBJECT, 3 * sizeof(PyObject) + sizeof(struct io_uring), 1,
+    {"flags", T_UINT, offsetof(Ring, ring) + offsetof(struct io_uring, flags),
+     1, "Flags of ring"},
+    {"fd", T_INT, offsetof(Ring, ring) + offsetof(struct io_uring, ring_fd), 1,
      "file descriptor of ring"},
     {NULL, 0, 0, 0, NULL}};
 
@@ -298,51 +312,4 @@ void register_ring(PyObject *mod) {
   Py_INCREF(&ring_type);
   if (PyModule_AddObject(mod, "Ring", (PyObject *)&ring_type) < 0)
     Py_DECREF(&ring_type);
-
-  PyObject *ring_flags_mod = PyModule_New("ring_flags");
-  PyModule_AddIntConstant(ring_flags_mod, "RING_SETUP_IOPOLL",
-                          IORING_SETUP_IOPOLL);
-  PyModule_AddIntConstant(ring_flags_mod, "RING_SETUP_SQPOLL",
-                          IORING_SETUP_SQPOLL);
-  PyModule_AddIntConstant(ring_flags_mod, "RING_SETUP_SQ_AFF",
-                          IORING_SETUP_SQ_AFF);
-  PyModule_AddIntConstant(ring_flags_mod, "RING_SETUP_CQSIZE",
-                          IORING_SETUP_CQSIZE);
-  PyModule_AddIntConstant(ring_flags_mod, "RING_SETUP_CLAMP",
-                          IORING_SETUP_CLAMP);
-  PyModule_AddIntConstant(ring_flags_mod, "RING_SETUP_ATTACH_WQ",
-                          IOSQE_BUFFER_SELECT);
-  PyModule_AddIntConstant(ring_flags_mod, "RING_SETUP_R_DISABLED",
-                          IORING_SETUP_R_DISABLED);
-
-  PyModule_AddObject(mod, "ring_flags", ring_flags_mod);
-
-  PyObject *opcodes_mod = PyModule_New("opcodes");
-  PyModule_AddIntConstant(opcodes_mod, "OP_NOP", IORING_OP_NOP);
-  PyModule_AddIntConstant(opcodes_mod, "OP_READV", IORING_OP_READV);
-  PyModule_AddIntConstant(opcodes_mod, "OP_WRITEV", IORING_OP_WRITEV);
-  PyModule_AddIntConstant(opcodes_mod, "OP_FSYNC", IORING_OP_FSYNC);
-  PyModule_AddIntConstant(opcodes_mod, "OP_READ_FIXED", IORING_OP_READ_FIXED);
-  PyModule_AddIntConstant(opcodes_mod, "OP_WRITE_FIXED", IORING_OP_WRITE_FIXED);
-  PyModule_AddIntConstant(opcodes_mod, "OP_POLL_ADD", IORING_OP_POLL_ADD);
-  PyModule_AddIntConstant(opcodes_mod, "OP_POLL_REMOVE", IORING_OP_POLL_REMOVE);
-  PyModule_AddIntConstant(opcodes_mod, "OP_SYNC_FILE_RANGE",
-                          IORING_OP_SYNC_FILE_RANGE);
-  PyModule_AddIntConstant(opcodes_mod, "OP_SENDMSG", IORING_OP_SENDMSG);
-  PyModule_AddIntConstant(opcodes_mod, "OP_RECVMSG", IORING_OP_RECVMSG);
-  PyModule_AddIntConstant(opcodes_mod, "OP_TIMEOUT", IORING_OP_TIMEOUT);
-  PyModule_AddIntConstant(opcodes_mod, "OP_TIMEOUT_REMOVE",
-                          IORING_OP_TIMEOUT_REMOVE);
-  PyModule_AddIntConstant(opcodes_mod, "OP_ACCEPT", IORING_OP_ACCEPT);
-  PyModule_AddIntConstant(opcodes_mod, "OP_ASYNC_CANCEL",
-                          IORING_OP_ASYNC_CANCEL);
-  PyModule_AddIntConstant(opcodes_mod, "OP_LINK_TIMEOUT",
-                          IORING_OP_LINK_TIMEOUT);
-  PyModule_AddIntConstant(opcodes_mod, "OP_CONNECT", IORING_OP_CONNECT);
-  PyModule_AddIntConstant(opcodes_mod, "OP_FALLOCATE", IORING_OP_FALLOCATE);
-  PyModule_AddIntConstant(opcodes_mod, "OP_OPENAT", IORING_OP_OPENAT);
-  PyModule_AddIntConstant(opcodes_mod, "OP_CLOSE", IORING_OP_CLOSE);
-  PyModule_AddIntConstant(opcodes_mod, "OP_FILES_UPDATE",
-                          IORING_OP_FILES_UPDATE);
-  PyModule_AddObject(mod, "opcodes", opcodes_mod);
 }

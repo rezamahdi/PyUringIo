@@ -22,63 +22,235 @@
 
 #include <liburing.h>
 #include <liburing/io_uring.h>
+#include <stdio.h>
 
 #include "uring.h"
 
 int SQEInit(PyObject *self, PyObject *args, PyObject *kwds) {
+  (void)args;
+  (void)kwds;
   SQE *sqe = (SQE *)self;
-  sqe->flags = PyDict_New();
-
   return 0;
 }
 
 void SQEDestructor(void *self) { SQE *sqe = (SQE *)self; }
 
-PyObject *SQESetFD(PyObject *self, PyObject *args) {
+/////////////////////// opcode
+int SQESetOC(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
   SQE *sqe = (SQE *)self;
-  PyArg_ParseTuple(args, "l", &sqe->entry->fd);
-  return Py_None;
+  if (!PyLong_Check(args)) {
+    PyErr_Format(PyExc_TypeError, "opcode must be an 'int'. got '%s'",
+                 args->ob_type->tp_name);
+    return -1;
+  }
+  sqe->entry->opcode = PyLong_AsLong(args);
+  return 0;
+}
+PyObject *SQEGetOC(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  return PyLong_FromLong(sqe->entry->opcode);
 }
 
-PyObject *SQESetOC(PyObject *self, PyObject *args) {
+/////////////////////// flags
+int SQESetFlags(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
   SQE *sqe = (SQE *)self;
-  PyArg_ParseTuple(args, "l", &sqe->entry->opcode);
-  return Py_None;
+  if (!PyLong_Check(args)) {
+    PyErr_Format(PyExc_TypeError, "flags must be an 'int'. got '%s'",
+                 args->ob_type->tp_name);
+    return -1;
+  }
+  sqe->entry->flags = PyLong_AsLong(args);
+  return 0;
+}
+PyObject *SQEGetFlags(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  return PyLong_FromLong(sqe->entry->flags);
 }
 
-PyObject *SQESetFlags(PyObject *self, PyObject *args) {
+/////////////////////// ioprio
+int SQESetIOPrio(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
   SQE *sqe = (SQE *)self;
-  PyArg_ParseTuple(args, "l", &sqe->entry->flags);
-  return Py_None;
+  if (!PyLong_Check(args)) {
+    PyErr_Format(PyExc_TypeError, "ioprio must be an 'int'. got '%s'",
+                 args->ob_type->tp_name);
+    return -1;
+  }
+  sqe->entry->ioprio = PyLong_AsLong(args);
+  return 0;
+}
+PyObject *SQEGetIOPrio(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  return PyLong_FromLong(sqe->entry->ioprio);
 }
 
-PyObject *SQESetData(PyObject *self, PyObject *args) {
+/////////////////////// fd
+int SQESetFD(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
   SQE *sqe = (SQE *)self;
-  PyObject *obj;
-  if (!PyArg_ParseTuple(args, "O", &obj)) return NULL;
-  Py_INCREF(obj);
-  sqe->entry->user_data = (__u64)obj;
-  return Py_None;
+  if (!PyLong_Check(args)) {
+    PyErr_Format(PyExc_TypeError, "fd must be an 'int'. got '%s'",
+                 args->ob_type->tp_name);
+    return -1;
+  }
+  sqe->entry->fd = PyLong_AsLong(args);
+  return 0;
+}
+PyObject *SQEGetFD(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  return PyLong_FromLong(sqe->entry->fd);
 }
 
-PyObject *SQEGetData(PyObject *self, PyObject *args) {
+/////////////////////// off
+int SQESetOff(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
   SQE *sqe = (SQE *)self;
-  Py_INCREF((PyObject *)sqe->entry->user_data);
+  if (!PyLong_Check(args)) {
+    PyErr_Format(PyExc_TypeError, "off must be an 'int'. got '%s'",
+                 args->ob_type->tp_name);
+    return -1;
+  }
+  sqe->entry->off = PyLong_AsLongLong(args);
+  return 0;
+}
+PyObject *SQEGetOff(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  return PyLong_FromLong(sqe->entry->off);
+}
+
+/////////////////////// len
+int SQESetLen(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  if (!PyLong_Check(args)) {
+    PyErr_Format(PyExc_TypeError, "len must be an 'int'. got '%s'",
+                 args->ob_type->tp_name);
+    return -1;
+  }
+  sqe->entry->len = PyLong_AsLong(args);
+  return 0;
+}
+PyObject *SQEGetLen(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  return PyLong_FromLong(sqe->entry->len);
+}
+
+/////////////////////// op_flags
+int SQESetOpFlags(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  if (!PyLong_Check(args)) {
+    PyErr_Format(PyExc_TypeError, "op_flags must be an 'int'. got '%s'",
+                 args->ob_type->tp_name);
+    return -1;
+  }
+  sqe->entry->rw_flags = PyLong_AsLong(args);
+  return 0;
+}
+PyObject *SQEGetOpFlags(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  return PyLong_FromLong(sqe->entry->rw_flags);
+}
+
+/////////////////////// data
+int SQESetData(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  sqe->entry->user_data = (__u64)args;
+  return 0;
+}
+PyObject *SQEGetData(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
   return (PyObject *)sqe->entry->user_data;
 }
 
-static PyMemberDef sqe_members[] = {
-    {"flags", T_OBJECT, sizeof(PyObject) + sizeof(struct io_uring_sqe), 1,
-     "Flags of SQE"},
-    {NULL, 0, 0, 0, NULL}};
+/////////////////////// buf_index
+int SQESetBufIndex(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  if (!PyLong_Check(args)) {
+    PyErr_Format(PyExc_TypeError, "buf_index must be an 'int'. got '%s'",
+                 args->ob_type->tp_name);
+    return -1;
+  }
+  sqe->entry->buf_index = PyLong_AsLong(args);
+  return 0;
+}
+PyObject *SQEGetBufIndex(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  return PyLong_FromLong(sqe->entry->buf_index);
+}
 
-static PyMethodDef sqe_methods[] = {
-    {"set_fd", SQESetFD, METH_VARARGS, "Prepare for NOP"},
-    {"set_opcode", SQESetOC, METH_VARARGS, "Set opcode"},
-    {"set_flags", SQESetFlags, METH_VARARGS, "Set flags"},
-    {"set_data", SQESetData, METH_VARARGS, "Set data"},
-    {"get_data", SQEGetData, METH_NOARGS, "Set data"},
-    {NULL, NULL, 0, NULL}};
+/////////////////////// buf_group
+int SQESetBufGroup(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  if (!PyLong_Check(args)) {
+    PyErr_Format(PyExc_TypeError, "buf_group must be an 'int'. got '%s'",
+                 args->ob_type->tp_name);
+    return -1;
+  }
+  sqe->entry->buf_group = PyLong_AsLong(args);
+  return 0;
+}
+PyObject *SQEGetGroup(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  return PyLong_FromLong(sqe->entry->buf_group);
+}
+
+/////////////////////// flags
+int SQESetPersonality(PyObject *self, PyObject *args, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  if (!PyLong_Check(args)) {
+    PyErr_Format(PyExc_TypeError, "personality must be an 'int'. got '%s'",
+                 args->ob_type->tp_name);
+    return -1;
+  }
+  sqe->entry->personality = PyLong_AsLong(args);
+  return 0;
+}
+PyObject *SQEGetPersonality(PyObject *self, void *enc) {
+  (void)enc;
+  SQE *sqe = (SQE *)self;
+  return PyLong_FromLong(sqe->entry->personality);
+}
+
+static PyGetSetDef sqe_setget[] = {
+    {"opcode", SQEGetOC, SQESetOC, "Opcode", NULL},
+    {"flags", SQEGetFlags, SQESetFlags, "Flags of SQE", NULL},
+    {"ioprio", SQEGetIOPrio, SQESetIOPrio, "IO priority", NULL},
+
+    {"fd", SQEGetFD, SQESetFD, "fd to do the IO", NULL},
+
+    {"off", SQEGetOff, SQESetOff, "Offset into file", NULL},
+    //{"addr2", NULL, NULL, "addr2", NULL},
+
+    {"len", SQEGetLen, SQESetLen, "Length of buffer or number of iovecs", NULL},
+
+    {"op_flags", SQEGetOpFlags, SQESetOpFlags, "fd to do the IO", NULL},
+
+    {"data", SQEGetData, SQESetData, "User data of SQE", NULL},
+
+    {"buf_index", SQEGetBufIndex, SQESetBufIndex, "Buffer index", NULL},
+    {"buf_group", SQEGetBufIndex, SQESetBufGroup, "Buffer group", NULL},
+
+    {"personality", SQEGetPersonality, SQESetPersonality, "Personality", NULL},
+    {NULL, NULL, NULL, NULL, NULL}};
+
+static PyMethodDef sqe_methods[] = {{NULL, NULL, 0, NULL}};
 
 PyTypeObject sqe_type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0) "_uring_io.SQE", /* tp_name */
@@ -108,8 +280,8 @@ PyTypeObject sqe_type = {
     0,                   /* tp_iter */
     0,                   /* tp_iternext */
     sqe_methods,         /* tp_methods */
-    sqe_members,         /* tp_members */
-    0,                   /* tp_getset */
+    0,                   /* tp_members */
+    sqe_setget,          /* tp_getset */
     0,                   /* tp_base */
     0,                   /* tp_dict */
     0,                   /* tp_descr_get */
@@ -117,25 +289,11 @@ PyTypeObject sqe_type = {
     0,                   /* tp_dictoffset */
     SQEInit,             /* tp_init */
     PyType_GenericAlloc, /* tp_alloc */
-    PyType_GenericNew,   /* tp_new */
+    NULL,                /* tp_new */
 };
 
 extern void register_sqe(PyObject *mod) {
   Py_INCREF(&sqe_type);
   if (PyModule_AddObject(mod, "SQE", (PyObject *)&sqe_type) < 0)
     Py_DECREF(&sqe_type);
-
-  PyObject *fixed_file = PyLong_FromLong(IOSQE_FIXED_FILE);
-  PyObject *io_drain = PyLong_FromLong(IOSQE_IO_DRAIN);
-  PyObject *io_link = PyLong_FromLong(IOSQE_IO_LINK);
-  PyObject *io_hardlink = PyLong_FromLong(IOSQE_IO_HARDLINK);
-  PyObject *async = PyLong_FromLong(IOSQE_ASYNC);
-  PyObject *buffer_select = PyLong_FromLong(IOSQE_BUFFER_SELECT);
-
-  PyModule_AddIntConstant(mod, "SQE_FIXED_FILE", IOSQE_FIXED_FILE);
-  PyModule_AddIntConstant(mod, "SQE_IO_DRAIN", IOSQE_IO_DRAIN);
-  PyModule_AddIntConstant(mod, "SQE_IO_LINK", IOSQE_IO_LINK);
-  PyModule_AddIntConstant(mod, "SQE_IO_HARDLINK", IOSQE_IO_HARDLINK);
-  PyModule_AddIntConstant(mod, "SQE_ASYNC", IOSQE_ASYNC);
-  PyModule_AddIntConstant(mod, "SQE_BUFFER_SELECT", IOSQE_BUFFER_SELECT);
 }

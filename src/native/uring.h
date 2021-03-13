@@ -18,13 +18,17 @@
 #include <pyerrors.h>
 #include <structmember.h>
 
+typedef struct {
+  PyObject_HEAD struct io_uring ring;
+  PyObject *entries;
+} Ring;
+
 /**
  * @brief Python struct for sqe
  *
  */
 typedef struct {
   PyObject_HEAD struct io_uring_sqe *entry;
-  PyObject *flags;
 } SQE;
 
 /**

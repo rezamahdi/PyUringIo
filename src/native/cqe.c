@@ -25,36 +25,49 @@
 #include "uring.h"
 
 int CQEInit(PyObject *self, PyObject *args, PyObject *kwds) {
+  (void)args;
+  (void)kwds;
+
   CQE *cqe = (CQE *)self;
   return 0;
 }
 
-PyObject *CQEGetData(PyObject *self, PyObject *args) {
+PyObject *CQEGetData(PyObject *self, void *args) {
   (void)args;
   CQE *cqe = (CQE *)self;
-  return (PyObject *)io_uring_cqe_get_data(cqe->entry);
+  Py_INCREF(cqe->entry->user_data);
+  return (PyObject *)(cqe->entry->user_data);
 }
 
-PyObject *CQEGetResult(PyObject *self, PyObject *args) {
+PyObject *CQEGetResult(PyObject *self, void *args) {
   (void)args;
   CQE *cqe = (CQE *)self;
   return PyLong_FromLong(cqe->entry->res);
 }
 
-PyObject *CQEGetFlags(PyObject *self, PyObject *args) {
+PyObject *CQEGetFlags(PyObject *self, void *args) {
   (void)args;
   CQE *cqe = (CQE *)self;
   return PyLong_FromLong(cqe->entry->flags);
 }
 
+int CQESetter(PyObject *self, PyObject *val, void *enc) {
+  (void)self;
+  (void)val;
+  (void)enc;
+  PyErr_SetString(PyExc_TypeError, "CQE object is immutable");
+  return -1;
+}
+
 void CQEDestructor(void *self) { CQE *cqe = (CQE *)self; }
 
-static PyMethodDef cqe_methods[] = {
-    {"get_data", CQEGetData, METH_NOARGS,
-     "Returns data object saved to corresponding SQE"},
-    {"get_result", CQEGetResult, METH_NOARGS, "Returns result of operation"},
-    {"get_flags", CQEGetFlags, METH_NOARGS, "Returns flags of operation"},
-    {NULL, NULL, 0, NULL}};
+static PyGetSetDef cqe_getset[] = {
+    {"data", CQEGetData, CQESetter, "User data of CQE", NULL},
+    {"result", CQEGetResult, CQESetter, "Result of operation", NULL},
+    {"flags", CQEGetFlags, CQESetter, "Flags of operation", NULL},
+    {NULL, NULL, NULL, NULL, NULL}};
+
+static PyMethodDef cqe_methods[] = {{NULL, NULL, 0, NULL}};
 
 PyTypeObject cqe_type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0) "_uring_io.CQE", /* tp_name */
@@ -85,7 +98,7 @@ PyTypeObject cqe_type = {
     0,                   /* tp_iternext */
     cqe_methods,         /* tp_methods */
     0,                   /* tp_members */
-    0,                   /* tp_getset */
+    cqe_getset,          /* tp_getset */
     0,                   /* tp_base */
     0,                   /* tp_dict */
     0,                   /* tp_descr_get */
@@ -93,7 +106,7 @@ PyTypeObject cqe_type = {
     0,                   /* tp_dictoffset */
     CQEInit,             /* tp_init */
     PyType_GenericAlloc, /* tp_alloc */
-    PyType_GenericNew,   /* tp_new */
+    NULL,                /* tp_new */
 };
 
 extern void register_cqe(PyObject *mod) {
