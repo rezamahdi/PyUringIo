@@ -1,5 +1,5 @@
 
-Python3_add_library (_uring_io SHARED main.c ring.c sqe.c cqe.c)
+Python3_add_library (_uring_io SHARED module.c ring.c sqe.c cqe.c)
 target_link_libraries(_uring_io PUBLIC uring)
 set_target_properties(_uring_io PROPERTIES SUFFIX ${PYTHON_MODULE_EXTENSION})
 set_target_properties(_uring_io PROPERTIES PREFIX "")
