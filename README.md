@@ -94,7 +94,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 # Author
 
-* **[Reza Mahdi](https://github.com/rezamahdi)** - *Initial work* 
+* **[Reza Mahdi](https://github.com/rezamahdi)** - *Initial work*
 
 See also the list of [contributors](https://github.com/rezamahdi/PyUringIO/contributors)
 who participated in this project.

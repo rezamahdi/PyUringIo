@@ -27,4 +27,3 @@ execute_process(
   ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 add_subdirectory(src)
-

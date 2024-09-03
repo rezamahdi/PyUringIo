@@ -5,7 +5,7 @@ if(LIBURING_LIBRARIES AND LIBURING_INCLUDE_DIRS)
   message(STATUS "liburing libs: ${LIBURING_LIBRARIES}")
   message(STATUS "liburing include directory: ${LIBURING_INCLUDE_DIRS}")
   set(LIBURING_FOUND TRUE CACHE BOOL "Found liburing libraries" FORCE)
-  
+
   add_library(uring STATIC IMPORTED)
   target_link_libraries(uring INTERFACE ${LIBURING_LIBRARIES})
   target_include_directories(uring INTERFACE ${LIBURING_INCLUDE_DIRS})
