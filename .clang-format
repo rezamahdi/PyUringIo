@@ -1,1 +1,7 @@
-BasedOnStyle: Google
+BasedOnStyle: GNU
+AlignArrayOfStructures: Left
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignConsecutiveBitFields: true
+AlignConsecutiveMacros: AcrossEmptyLines
+AlignEscapedNewlines: Right
